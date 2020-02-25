@@ -8,7 +8,7 @@ package Clases;
 import org.jfree.chart.annotations.XYTextAnnotation;
 
 /**
- * @author Santiago
+ * @author David Santiago Garcia Chicangana
  */
 public class Etiqueta {
     

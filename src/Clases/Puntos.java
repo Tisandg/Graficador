@@ -6,7 +6,7 @@
 package Clases;
 
 /**
- * @author Santiago
+ * @author David Santiago Garcia Chicangana
  */
 public class Puntos {
     private float x,y;

@@ -14,7 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * @author Santiago
+ * @author David Santiago Garcia Chicangana
  */
 public class LectorArchivos {
     

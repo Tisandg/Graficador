@@ -32,8 +32,7 @@ import org.jfree.data.xy.XYSeriesCollection;
 import org.jfree.ui.RectangleEdge;
 
 /**
- *
- * @author Santiago
+ * @author David Santiago Garcia Chicangana
  */
 
 class PanelGrafica extends JPanel implements ChartMouseListener {
