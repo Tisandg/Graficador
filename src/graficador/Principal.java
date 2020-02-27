@@ -10,11 +10,11 @@ import org.jfree.chart.ChartPanel;
 import gnu.io.*;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Enumeration;
-import javax.swing.JDialog;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
@@ -91,7 +91,8 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     public void mostrarGrafica() {
         for(int i = 0; i<puntosX.size(); i++){
             Puntos p = new Puntos(puntosX.get(i),puntosY.get(i));
-            float elongacion = (p.getY()/25)*100;
+            float elongacion = (p.getY()/panel.referencia)*100;
+            if(elongacion<0){   elongacion = elongacion * -1;   }
             p.setElongacion(elongacion);
             puntos.add(p);
         }
@@ -113,9 +114,11 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         while(this.puertos.hasMoreElements()){
             portID = (CommPortIdentifier) this.puertos.nextElement();//Recorrer uno a uno
             System.out.println("Puerto: "+portID.getName());
+            System.out.println("Tipo: "+portID.getPortType());
+            System.out.println("Owner: "+portID.getCurrentOwner());
+            System.out.println("Currently owner? "+portID.isCurrentlyOwned());
             idPuertos.add(portID.getName());
         }
-        System.out.println("Puertos? "+puertos.hasMoreElements());
     }
     
     private void cargarPuertos(){
@@ -138,47 +141,43 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     private void conectarPuerto(java.awt.event.ActionEvent evt, String puertoSeleccionado){
         System.out.println("Conectando a puerto: "+puertoSeleccionado);
         CommPortIdentifier portID;//Identifica los puertos
-        //Recorremos los puertos
-        this.puertos = CommPortIdentifier.getPortIdentifiers();
-        while(puertos.hasMoreElements()){
-            portID = (CommPortIdentifier) puertos.nextElement();//Recorrer uno a uno
-            if(portID.getName().equals(puertoSeleccionado)){
-                try{
-                    
-                    //Abrir puerto
-                    serialPort = (SerialPort) portID.open(this.getClass().getName(), TIME_OUT);//Tiempo en milisegundos
-                    System.out.println("Conexion establecida");
-                    
-                    //Configurar parametros
-                    serialPort.setSerialPortParams(DATE_RATE,
-                            SerialPort.DATABITS_8,
-                            SerialPort.STOPBITS_1,
-                            SerialPort.PARITY_NONE);
-                    
-                    //Abrir entrada y salida de datos
-                    input = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
-                    output = serialPort.getOutputStream();
-                    
-                    //Añadir eventos de escucha
-                    serialPort.addEventListener(this);
-                    serialPort.notifyOnDataAvailable(true);
-                    System.out.println("Listener añadidos");
-                    
-                    JOptionPane.showMessageDialog(this, "Conexion establecida. Esperando los datos...");
-                }catch(PortInUseException exception){
-                    System.out.println("Puerto en uso");
-                    exception.printStackTrace();
-                    msgSinConexionPuerto();
-                }catch(IOException exception){
-                    System.out.println("Error al leer del puerto");
-                    exception.printStackTrace();
-                    msgSinConexionPuerto();
-                }catch(Exception exception){
-                    System.out.println("Excepcion capturada");
-                    exception.printStackTrace();
-                    msgSinConexionPuerto();
-                }
-            }
+        try {
+            //Abrir puerto
+            portID = CommPortIdentifier.getPortIdentifier(puertoSeleccionado);
+            serialPort = (SerialPort) portID.open(this.getClass().getName(), TIME_OUT);//Tiempo en milisegundos
+            System.out.println("Conexion establecida");
+
+            //Configurar parametros
+            serialPort.setSerialPortParams(DATE_RATE,
+                    SerialPort.DATABITS_8,
+                    SerialPort.STOPBITS_1,
+                    SerialPort.PARITY_NONE);
+
+            //Abrir entrada y salida de datos
+            input = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
+            output = serialPort.getOutputStream();
+
+            //Añadir eventos de escucha
+            serialPort.addEventListener(this);
+            serialPort.notifyOnDataAvailable(true);
+            System.out.println("Listener añadidos");
+
+            JOptionPane.showMessageDialog(this, "Conexion establecida. Esperando los datos...");
+        }catch(PortInUseException exception){
+            System.out.println("Puerto en uso");
+            exception.printStackTrace();
+            msgSinConexionPuerto();
+        }catch(IOException exception){
+            System.out.println("Error al leer del puerto");
+            exception.printStackTrace();
+            msgSinConexionPuerto();
+        }catch (NoSuchPortException ex) {
+            System.out.println("No se encontro el puerto '"+puertoSeleccionado+"'");
+            ex.printStackTrace();
+        }catch(Exception exception){
+            System.out.println("Excepcion capturada");
+            exception.printStackTrace();
+            msgSinConexionPuerto();
         }
     }
     
@@ -202,7 +201,7 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
                     String[] dividido = linea.split(",");
                     puntosX.add(Float.parseFloat(dividido[0]));
                     puntosY.add(Float.parseFloat(dividido[1]));
-                    if(linea.equals("1000,3.7443")){
+                    if(linea.equals("500,-22.1944")){
                         System.out.println("Entro");
                         this.lecturaTerminada = true;
                     }
@@ -303,6 +302,14 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
             String rutaArchivo = explorador.getSelectedFile().getPath();
             System.out.println("Ruta: "+rutaArchivo);
             puntos = this.lector.LeerTxt(rutaArchivo);
+            
+            // Calcular Elongación
+            for(Puntos p:puntos){
+                float elongacion = (p.getY()/panel.referencia)*100;
+                if(elongacion<0){   elongacion = elongacion*(-1);   }
+                p.setElongacion(elongacion);
+            }
+            
             int i = 0;
             System.out.println("Pareja de puntos");
             for(i = 0; i<puntos.size(); i++){

@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package graficador;
 
 import Clases.Etiqueta;
@@ -39,20 +34,33 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
 
     private ChartPanel chartPanel;
     private ArrayList<Puntos> puntos;
+    
+    private String tituloGrafico = "Grafica";
+    private String nombreEjeX = "Muestra";
+    private String nombreEjeY = "mm Milimetros";
+    
+    private float maximaElongacion;
+    
+    //Valor de una pulgada en mm;
+    static float referencia = (float) 25.4;
+    
     ArrayList<Etiqueta> puntosMarcados;
-    private static final Shape circle = new Ellipse2D.Double(-3, -3, 2, 2);
+    //Ellipse2D.Double(coordenadaX, coordenadaY, ancho, alto);
+    private static final Shape circle = new Ellipse2D.Double(-1, -1, 4, 4);
     XYTextAnnotation a1,a2;
     JFreeChart chart;
     
     //Sensibilidad para mostrar dato
-    float rangoMostrar = new Float(0.01);
+    float rangoMostrar = new Float(0.03);
 
     public PanelGrafica(ArrayList<Puntos> puntos){
         super(new BorderLayout());
-        a1 = new XYTextAnnotation("null", 10, 10);
-        a2 = new XYTextAnnotation("null", 10, 10);
+        this.a1 = new XYTextAnnotation("null", 10, 10);
+        this.a2 = new XYTextAnnotation("null", 10, 10);
+        this.maximaElongacion = 0;
         this.puntos = puntos;
-        chart = crearGrafico();
+        this.puntosMarcados = new ArrayList<Etiqueta>();
+        this.chart = crearGrafico();
         this.chartPanel = new ChartPanel(chart);
         this.chartPanel.addChartMouseListener(this);
         add(this.chartPanel);
@@ -63,21 +71,26 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         int i = 0;
         for(i = 0 ; i< puntos.size(); i++){
             set.add(puntos.get(i).getX(),puntos.get(i).getY());
+            if(puntos.get(i).getElongacion() > this.maximaElongacion){
+                this.maximaElongacion = puntos.get(i).getElongacion();
+            }
         }
 
         XYSeriesCollection dataset = new XYSeriesCollection();
         dataset.addSeries(set);
-        JFreeChart chart = ChartFactory.createXYLineChart("Grafica", "Muestra", "mm Milimetros",
+        JFreeChart chart = ChartFactory.createXYLineChart(tituloGrafico,
+                nombreEjeX,
+                nombreEjeY,
                 dataset,
                 PlotOrientation.VERTICAL,
                 true, //uso de leyenda
                 true,//uso de tooltips
                 false //uso url
         );
-        String elongacion = "Elongación = ";
+        String elongacion = "Elongación = "+this.maximaElongacion;
         try{
             Puntos p = puntos.get(puntos.size()-1);
-            elongacion += p.getElongacion()+"%";
+            elongacion += "= "+p.getElongacion()+"%";
         }catch(Exception e){
             System.out.println("Excepción capturada");
         }
@@ -125,7 +138,7 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
                 float puntoY = puntos.get(respuesta).getY();
 
                 String Coordenadas = "X:+"+puntoX+", Y:"+puntoY;
-                String elongacion = "Elongación: ";
+                String elongacion = "Elongación: "+puntos.get(respuesta).getElongacion()+"%";
                 if(puntoX<=2 || puntoY<=2){
                     puntoY = puntoY+3;
                 }
@@ -165,6 +178,8 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
             x = Double.NaN;                  
         }
         double y =  DatasetUtilities.findYValue(plot.getDataset(), 0, x);
+        //Comprobamos si la coordenada donde esta el mouse es un punto
+        //de los datos obtenidos
         int respuesta = isPunto(x,y,rangoMostrar);
         if(respuesta != -1){
             plot.removeAnnotation(a1);
@@ -181,13 +196,10 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
             XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX,puntoY-1);
             XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX,puntoY-2);
             plot.addAnnotation(etiqueta);
-            plot
-                    .addAnnotation(etiqueta2);
+            plot.addAnnotation(etiqueta2);
             a1 = etiqueta;
             a2 = etiqueta2;
 
-        }else{
-            System.out.println("No mostrado");
         }
     }
 
@@ -210,6 +222,12 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         return -1;
     }
 
+    /**
+     * Funcion para redondear el numero de decimales de un valor double.
+     * @param valorInicial
+     * @param numeroDecimales
+     * @return 
+     */
     private double redondearDecimales(double valorInicial, double numeroDecimales) {
         double parteEntera, resultado;
         resultado = valorInicial;
