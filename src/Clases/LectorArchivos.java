@@ -18,17 +18,17 @@ import java.util.logging.Logger;
  */
 public class LectorArchivos {
     
-    public ArrayList<Puntos> LeerTxt(String direction) {
+    public ArrayList<String> LeerTxt(String direction) {
         Logger logger = Logger.getLogger(LectorArchivos.class.getName());
-        ArrayList arrayPuntos =  new ArrayList<Puntos>();
+        ArrayList<String> arrayPuntos =  new ArrayList<String>();
         try{
             BufferedReader bf = new BufferedReader(new FileReader(direction));
             String temp = "";
             String bfRead;
             while((bfRead = bf.readLine()) != null){
-                String[] txtPartido = bfRead.split(",");
-                Puntos punto = new Puntos(Float.valueOf(txtPartido[0]),Float.valueOf(txtPartido[1]));
-                arrayPuntos.add(punto);
+                //String[] txtPartido = bfRead.split(",");
+                //Puntos punto = new Puntos(Float.valueOf(txtPartido[0]),Float.valueOf(txtPartido[1]));
+                arrayPuntos.add(bfRead);
             }
         }catch(FileNotFoundException e){
             logger.log(Level.INFO, "Archivo no encontrado");

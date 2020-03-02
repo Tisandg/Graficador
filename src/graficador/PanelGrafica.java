@@ -36,8 +36,8 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     private ArrayList<Puntos> puntos;
     
     private String tituloGrafico = "Grafica";
-    private String nombreEjeX = "Muestra";
-    private String nombreEjeY = "mm Milimetros";
+    private String nombreEjeX = "Distancia";
+    private String nombreEjeY = "Nw Fuerza";
     
     private float maximaElongacion;
     
@@ -46,19 +46,37 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     
     ArrayList<Etiqueta> puntosMarcados;
     //Ellipse2D.Double(coordenadaX, coordenadaY, ancho, alto);
-    private static final Shape circle = new Ellipse2D.Double(-1, -1, 4, 4);
+    private static final Shape circle = new Ellipse2D.Double(-1,-1, 1,1);
     XYTextAnnotation a1,a2;
     JFreeChart chart;
     
     //Sensibilidad para mostrar dato
-    float rangoMostrar = new Float(0.03);
+    float rangoMostrar = new Float(0.9);
 
-    public PanelGrafica(ArrayList<Puntos> puntos){
+    public PanelGrafica(ArrayList<Puntos> puntosRecibidos, String ejeX, String ejeY){
         super(new BorderLayout());
         this.a1 = new XYTextAnnotation("null", 10, 10);
         this.a2 = new XYTextAnnotation("null", 10, 10);
+        
+        //Nombres ejes
+        this.nombreEjeX = ejeX;
+        this.nombreEjeY = ejeY;
+        
         this.maximaElongacion = 0;
-        this.puntos = puntos;
+        //Redondeamos numeros
+        int i;
+        this.puntos = new ArrayList<Puntos>();
+        for(i = 0 ; i< puntosRecibidos.size(); i++){
+            float y = (float) redondearDecimales(puntosRecibidos.get(i).getY(), 2);
+            Puntos punto = new Puntos(puntosRecibidos.get(i).getX(), y);
+            float elongacion = (float) redondearDecimales(puntosRecibidos.get(i).getElongacion(), 2);
+            punto.setElongacion(elongacion);
+            if(elongacion > this.maximaElongacion){
+                this.maximaElongacion = elongacion;
+            }
+            puntos.add(punto);
+        }
+        //this.puntos = puntos;
         this.puntosMarcados = new ArrayList<Etiqueta>();
         this.chart = crearGrafico();
         this.chartPanel = new ChartPanel(chart);
@@ -69,15 +87,19 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     public JFreeChart crearGrafico(){
         XYSeries set = new XYSeries("Fuerza");
         int i = 0;
-        for(i = 0 ; i< puntos.size(); i++){
-            set.add(puntos.get(i).getX(),puntos.get(i).getY());
-            if(puntos.get(i).getElongacion() > this.maximaElongacion){
-                this.maximaElongacion = puntos.get(i).getElongacion();
+        
+            //**los puntos en el eje x siempre van a ser enteros? van a tener decimales?
+            //Redondeamos el numero a 2 decimales
+            
+            //set.add(puntos.get(i).getX(),y);
+            for(i = 0;i<puntos.size();i++){
+                set.add(puntos.get(i).getX(), puntos.get(i).getY());
             }
-        }
-
+        
+        //Creamos la serie
         XYSeriesCollection dataset = new XYSeriesCollection();
         dataset.addSeries(set);
+        
         JFreeChart chart = ChartFactory.createXYLineChart(tituloGrafico,
                 nombreEjeX,
                 nombreEjeY,
@@ -87,14 +109,7 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
                 true,//uso de tooltips
                 false //uso url
         );
-        String elongacion = "Elongación = "+this.maximaElongacion;
-        try{
-            Puntos p = puntos.get(puntos.size()-1);
-            elongacion += "= "+p.getElongacion()+"%";
-        }catch(Exception e){
-            System.out.println("Excepción capturada");
-        }
-        
+        String elongacion = "Elongación = "+this.maximaElongacion+"%";        
         chart.addSubtitle(new TextTitle(elongacion,new Font("Dialog",Font.PLAIN,15)));
 
         XYPlot plot = chart.getXYPlot();
@@ -106,7 +121,9 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
 
         XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
         renderer.setSeriesPaint(0, Color.BLUE);
+        //BasicStroke: Grosor de la linea
         renderer.setSeriesStroke(0, new BasicStroke(1.0f));
+        //renderer.setSeriesLinesVisible(0, true);
 
         plot.setRenderer(renderer);
         renderer.setSeriesShape(0, circle);
@@ -131,7 +148,8 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
             }
             double y =  DatasetUtilities.findYValue(plot.getDataset(), 0, x);
 
-            int respuesta = isPunto(x,y,rangoMostrar);
+            int respuesta = isPunto(x,y);
+            
             if(respuesta != -1){
                 //DecimalFormat df = new DecimalFormat("#.0");
                 float puntoX = puntos.get(respuesta).getX();
@@ -142,8 +160,9 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
                 if(puntoX<=2 || puntoY<=2){
                     puntoY = puntoY+3;
                 }
+                
                 XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX,puntoY-1);
-                XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX,puntoY-2);
+                XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX,puntoY-4);
                 etiqueta.setBackgroundPaint(Color.lightGray);
                 etiqueta2.setBackgroundPaint(Color.lightGray);
                 if(isPuntoMarcado(etiqueta, etiqueta2)){
@@ -170,17 +189,23 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         XYPlot plot = (XYPlot) chart.getPlot();
 
         org.jfree.chart.axis.ValueAxis xAxis = plot.getDomainAxis();
+        org.jfree.chart.axis.ValueAxis yAxis = plot.getRangeAxis();
 
-        double x = xAxis.java2DToValue(cme.getTrigger().getX(), dataArea, 
-                RectangleEdge.BOTTOM);
+        double x = xAxis.java2DToValue(cme.getTrigger().getX(), dataArea, RectangleEdge.BOTTOM);
         // make the crosshairs disappear if the mouse is out of range
         if (!xAxis.getRange().contains(x)) { 
             x = Double.NaN;                  
         }
-        double y =  DatasetUtilities.findYValue(plot.getDataset(), 0, x);
+        //double y =  DatasetUtilities.findYValue(plot.getDataset(), 0, x);
+        double y = yAxis.java2DToValue(cme.getTrigger().getY(), dataArea, RectangleEdge.LEFT);
+        if (!yAxis.getRange().contains(y)) { 
+            y = Double.NaN;                  
+        }
         //Comprobamos si la coordenada donde esta el mouse es un punto
         //de los datos obtenidos
-        int respuesta = isPunto(x,y,rangoMostrar);
+        System.out.println("Coordenada: ["+x+","+y+"]");
+        
+        int respuesta = isPunto(x,y);
         if(respuesta != -1){
             plot.removeAnnotation(a1);
             plot.removeAnnotation(a2);
@@ -193,24 +218,37 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
             if(puntoX<=2 || puntoY<=2){
                 puntoY = puntoY+3;
             }
-            XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX,puntoY-1);
-            XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX,puntoY-2);
+            XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX+15,puntoY-3);
+            XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX+15,puntoY-6);
             plot.addAnnotation(etiqueta);
             plot.addAnnotation(etiqueta2);
             a1 = etiqueta;
             a2 = etiqueta2;
-
+        }else{
+            plot.removeAnnotation(a1);
+            plot.removeAnnotation(a2);
         }
     }
 
-    private int isPunto(double x, double y, float rango){
-        float _x = (float) redondearDecimales(x, 2);
-        float _y = (float) redondearDecimales(y, 2);
+    /**
+     * 
+     * @param coordenadaX Coordenada x de la posición del mouse
+     * @param coordenadaY Coordenada y de la posición del mouse
+     * @param rango 
+     * @return 
+     */
+    private int isPunto(double coordenadaX, double coordenadaY){
+        float x = (float) redondearDecimales(coordenadaX, 2);
+        float y = (float) redondearDecimales(coordenadaY, 2);
+        //
         try{
             int i = 0;
+            //Buscamos en los puntos a cual de ellos esta mas cercano
             for(i = 0 ; i<puntos.size() ; i++){
-                if((_x<puntos.get(i).getX()+rango) && x>(puntos.get(i).getX()-rango)){
-                    System.out.println("puntos ["+puntos.get(i).getX()+","+puntos.get(i).getY()+"] valores["+_x+","+_y+"]");
+                //if((x<puntos.get(i).getX()+rangoMostrar) && coordenadaX>(puntos.get(i).getX()-rangoMostrar)){
+                if( (x <= puntos.get(i).getX()+rangoMostrar) && (x >= puntos.get(i).getX()-rangoMostrar) &&
+                    (y <= puntos.get(i).getY()+rangoMostrar) && (y >= puntos.get(i).getY()-rangoMostrar)){
+                    System.out.println("Match:["+puntos.get(i).getX()+","+puntos.get(i).getY()+"] valores["+x+","+y+"]");
                     return i;
                 }
             }
@@ -232,9 +270,9 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         double parteEntera, resultado;
         resultado = valorInicial;
         parteEntera = Math.floor(resultado);
-        resultado=(resultado-parteEntera)*Math.pow(10, numeroDecimales);
-        resultado=Math.round(resultado);
-        resultado=(resultado/Math.pow(10, numeroDecimales))+parteEntera;
+        resultado = (resultado-parteEntera)*Math.pow(10, numeroDecimales);
+        resultado = Math.round(resultado);
+        resultado = (resultado/Math.pow(10, numeroDecimales))+parteEntera;
         return resultado;
     }
 

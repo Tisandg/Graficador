@@ -13,8 +13,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
@@ -32,6 +30,9 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     private boolean lecturaTerminada = false;
     static SerialPort serialPort; //Esta clase abre los puertos
     ArrayList<String> idPuertos;
+    private int contadorDatos = 1;
+    private String ejeX = "Eje X";
+    private String ejeY = "Eje Y";
     
     //Lectura desde txt
     LectorArchivos lector;
@@ -64,6 +65,7 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
                 while(true){
                     if(lecturaTerminada){
                         System.out.println("Lectura terminada");
+                        depurarDatos();
                         mostrarGrafica();
                         lecturaTerminada = false;
                     }
@@ -82,13 +84,81 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         //Centrar la ventana
         setLocationRelativeTo(null);
     }
+    
+    /**
+     * Deja el mayor valor obtenido respecto a una misma distancia tomada.
+     * Nota: Se pueden recibir 2 o mas de estos para una misma medida.
+     */
+    public void depurarDatos(){
+        System.out.println("Depurando datos...");
+        float x, mayorY;
+        int tam = puntosX.size();
+        //ArrayList<Puntos> listaTemporal = new ArrayList<Puntos>();
+        //ArrayList<Float> datos = new ArrayList<Float>();
+        ArrayList<Float> puntos_x = new ArrayList<Float>();
+        ArrayList<Float> puntos_y = new ArrayList<Float>();
+        
+        int i;
+        //Tomamos el primer valor de las listas
+        x = puntosX.get(0);
+        mayorY = puntosY.get(0);
+        //datos.add(puntosY.get(0));
+        for(i = 1 ; i<tam ; i++){
+            if(puntosX.get(i)==x){
+                //datos.add(puntosY.get(i));
+               if(puntosY.get(i)>mayorY){
+                   mayorY = puntosY.get(i);
+               }
+            }else{
+                //Saco el promedio
+                /*int cantidad = 0;
+                int j;
+                float suma = 0;
+                for(j=0; j<datos.size();j++){
+                    suma = suma + datos.get(j);
+                    cantidad++;
+                }
+                float promedio = suma/cantidad;*/
+                //Cambio de distancia, agrego los datos
+                //listaTemporal.add()
+                puntos_x.add(x);
+                puntos_y.add(mayorY);
+                //Puntos p = new Puntos(x, mayorY);
+                //listaTemporal.add(p);
+                //continuo mostrando los datos
+                
+                //Le asigno a las variables la siguiente pareja
+                x = puntosX.get(i);
+                mayorY = puntosY.get(i);
+                //datos.clear();
+                //datos.add(puntosY.get(i));
+            }
+        }
+        tam = puntos_x.size();
+        System.out.println("Datos Depurados. Total:"+tam);
+        this.puntosX = puntos_x;
+        this.puntosY = puntos_y;
+        /*for(i=0;i<listaTemporal.size();i++){
+            System.out.println("["+listaTemporal.get(i).getX()+","+
+                    listaTemporal.get(i).getY()+"]");
+        }*/
+        /*this.puntosX.clear();
+        this.puntosY.clear();
+        for(i = 0;i<tam;i++){
+            puntosX.add(listaTemporal.get(i).getX());
+            puntosY.add(listaTemporal.get(i).getY());
+        }*/
+    }
 
     private JPanel crearGrafica() {
-        panel = new PanelGrafica(puntos);
+        panel = new PanelGrafica(puntos, ejeX, ejeY);
         return panel;
     }
     
     public void mostrarGrafica() {
+        //Iniciar de nuevo la lista de puntos
+        this.puntos = new ArrayList<Puntos>();
+        
         for(int i = 0; i<puntosX.size(); i++){
             Puntos p = new Puntos(puntosX.get(i),puntosY.get(i));
             float elongacion = (p.getY()/panel.referencia)*100;
@@ -96,8 +166,11 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
             p.setElongacion(elongacion);
             puntos.add(p);
         }
-        System.out.println("Total puntos: "+puntos.size());
+        System.out.println("Puntos a graficar: "+puntos.size());
         setContentPane(crearGrafica());
+        
+        this.puntosX = new ArrayList<Float>();
+        this.puntosY = new ArrayList<Float>();
         /*hace que la ventana coja el tamaño más pequeño posible que permita ver
         todos los componentes.*/
         //this.pack();
@@ -113,10 +186,9 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         //Recorremos los puertos
         while(this.puertos.hasMoreElements()){
             portID = (CommPortIdentifier) this.puertos.nextElement();//Recorrer uno a uno
-            System.out.println("Puerto: "+portID.getName());
-            System.out.println("Tipo: "+portID.getPortType());
+            /*System.out.println("Puerto: "+portID.getName());
             System.out.println("Owner: "+portID.getCurrentOwner());
-            System.out.println("Currently owner? "+portID.isCurrentlyOwned());
+            System.out.println("Currently owner? "+portID.isCurrentlyOwned());*/
             idPuertos.add(portID.getName());
         }
     }
@@ -142,10 +214,17 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         System.out.println("Conectando a puerto: "+puertoSeleccionado);
         CommPortIdentifier portID;//Identifica los puertos
         try {
+            //serialPort ha sido abierto? Cerrar, de lo contrario continuar
+            this.close();
+            
             //Abrir puerto
             portID = CommPortIdentifier.getPortIdentifier(puertoSeleccionado);
             serialPort = (SerialPort) portID.open(this.getClass().getName(), TIME_OUT);//Tiempo en milisegundos
             System.out.println("Conexion establecida");
+            
+            System.out.println("Puerto: "+portID.getName());
+            System.out.println("Owner: "+portID.getCurrentOwner());
+            System.out.println("Currently owner? "+portID.isCurrentlyOwned());
 
             //Configurar parametros
             serialPort.setSerialPortParams(DATE_RATE,
@@ -162,27 +241,28 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
             serialPort.notifyOnDataAvailable(true);
             System.out.println("Listener añadidos");
 
-            JOptionPane.showMessageDialog(this, "Conexion establecida. Esperando los datos...");
+            JOptionPane.showMessageDialog(this, "Conexion establecida.\nListo para leer los datos.");
         }catch(PortInUseException exception){
             System.out.println("Puerto en uso");
             exception.printStackTrace();
-            msgSinConexionPuerto();
+            mostrarMensaje("Información","Puerto en uso.");
         }catch(IOException exception){
             System.out.println("Error al leer del puerto");
             exception.printStackTrace();
-            msgSinConexionPuerto();
+            mostrarMensaje("Error","Error al leer el puerto.\nVerifique la conexion.");
         }catch (NoSuchPortException ex) {
-            System.out.println("No se encontro el puerto '"+puertoSeleccionado+"'");
+            System.out.println("No se encontro el puerto '"+puertoSeleccionado+"'.");
             ex.printStackTrace();
+            mostrarMensaje("Error","No se encontro el puerto '"+puertoSeleccionado+"'.");
         }catch(Exception exception){
-            System.out.println("Excepcion capturada");
             exception.printStackTrace();
-            msgSinConexionPuerto();
+            System.out.println("Excepcion capturada");
+            mostrarMensaje("Error","Problemas al conectar al puerto.");
         }
     }
     
-    public void msgSinConexionPuerto(){
-        JOptionPane.showMessageDialog(this, "No se pudo conectar al puerto. Verifique la conexión", "Error", JOptionPane.QUESTION_MESSAGE, null);
+    public void mostrarMensaje(String titulo, String mensaje){
+        JOptionPane.showMessageDialog(this, mensaje, titulo, JOptionPane.QUESTION_MESSAGE, null);
     }
     
     public synchronized void close(){
@@ -197,20 +277,53 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         if(event.getEventType() == SerialPortEvent.DATA_AVAILABLE){
             try{
                 String linea = input.readLine();
-                if(!linea.equals("inicio") && !linea.equals("final")){
+                if(contadorDatos == 0){
                     String[] dividido = linea.split(",");
-                    puntosX.add(Float.parseFloat(dividido[0]));
-                    puntosY.add(Float.parseFloat(dividido[1]));
-                    if(linea.equals("500,-22.1944")){
+                    this.ejeX = dividido[0];
+                    this.ejeY = dividido[1];
+                    this.contadorDatos++;
+                }else{
+                    //if(linea.equals("1")){
+                    if(this.contadorDatos == 302){
                         System.out.println("Entro");
                         this.lecturaTerminada = true;
+                        //this.contadorDatos = 0;
+                    }else if(this.contadorDatos < 302 ){
+                        //if(lecturaTerminada == false){
+                            String[] dividido = linea.split(",");
+                            float valorX = Float.parseFloat(dividido[0]);
+                            float valorY = Float.parseFloat(dividido[1]);
+                            puntosX.add(valorX);
+                            puntosY.add(valorY);
+                        //}
                     }
+                    this.contadorDatos++;
                 }
                 System.out.println(linea);
-            } catch (IOException ex) {
+            }catch (IOException ex) {
+                this.close();
+                mostrarMensaje("Información", "Conexion cerrada.\nVuelva a seleccionar el puerto");
                 System.out.println("Excepcion al leer la linea. "+ex.getMessage());
                 ex.printStackTrace();
             }
+        }
+    }
+    
+    /**
+     * Extrare los nombres de los ejes y los puntos
+     * @param datos 
+     */
+    public void procesarDatosTxt(ArrayList<String> datos){
+        //ArrayList<Puntos> lista = this.lector.LeerTxt(rutaArchivo);
+        int i = 0;
+        int tam = datos.size();
+        String[] dividido = datos.get(0).split(",");
+        this.ejeX = dividido[0];
+        this.ejeY = dividido[1];
+        for(i = 1;i<tam;i++){
+            dividido = datos.get(i).split(",");
+            puntosX.add(Float.parseFloat(dividido[0]));
+            puntosY.add(Float.parseFloat(dividido[1]));
         }
     }
 
@@ -301,20 +414,18 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         if(opcion == JFileChooser.APPROVE_OPTION){
             String rutaArchivo = explorador.getSelectedFile().getPath();
             System.out.println("Ruta: "+rutaArchivo);
-            puntos = this.lector.LeerTxt(rutaArchivo);
+            this.puntosX = new ArrayList<Float>();
+            this.puntosY = new ArrayList<Float>();
             
-            // Calcular Elongación
-            for(Puntos p:puntos){
-                float elongacion = (p.getY()/panel.referencia)*100;
-                if(elongacion<0){   elongacion = elongacion*(-1);   }
-                p.setElongacion(elongacion);
-            }
+            ArrayList<String> datosLeidos = this.lector.LeerTxt(rutaArchivo);
+            procesarDatosTxt(datosLeidos);
             
-            int i = 0;
             System.out.println("Pareja de puntos");
-            for(i = 0; i<puntos.size(); i++){
-                System.out.println(""+puntos.get(i).getX()+","+puntos.get(i).getY());
+            int i;
+            for(i = 0; i<puntosX.size(); i++){
+                System.out.println("["+puntosX.get(i)+","+puntosY.get(i)+"]");
             }
+            depurarDatos();
             mostrarGrafica();
         }else{
             System.out.println("No ha seleccionado");
@@ -323,6 +434,7 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
 
     private void jMenuItem_SalirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem_SalirActionPerformed
         // TODO add your handling code here:
+        System.exit(0);
     }//GEN-LAST:event_jMenuItem_SalirActionPerformed
 
     private void jMenuItem_ImprimirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem_ImprimirActionPerformed
