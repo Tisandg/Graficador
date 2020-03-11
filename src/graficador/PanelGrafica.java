@@ -6,11 +6,13 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import javax.swing.JPanel;
+import javax.swing.text.Document;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartMouseEvent;
 import org.jfree.chart.ChartMouseListener;
@@ -39,6 +41,12 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     private String nombreEjeX = "Distancia";
     private String nombreEjeY = "Nw Fuerza";
     
+    private int maxPuntos = 0;
+    private double minY = 0;
+    private double maxY = 0;
+    private double minX = 0;
+    private double maxX = 0;
+    
     private float maximaElongacion;
     
     //Valor de una pulgada en mm;
@@ -46,7 +54,7 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     
     ArrayList<Etiqueta> puntosMarcados;
     //Ellipse2D.Double(coordenadaX, coordenadaY, ancho, alto);
-    private static final Shape circle = new Ellipse2D.Double(-1,-1, 1,1);
+    private static final Shape circle = new Ellipse2D.Double(-1,-1, 2,2);
     XYTextAnnotation a1,a2;
     JFreeChart chart;
     
@@ -77,18 +85,18 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
             puntos.add(punto);
         }
         //this.puntos = puntos;
+        this.maxPuntos = puntos.size();
         this.puntosMarcados = new ArrayList<Etiqueta>();
         this.chart = crearGrafico();
         this.chartPanel = new ChartPanel(chart);
         this.chartPanel.addChartMouseListener(this);
         add(this.chartPanel);
     }
-
+    
     public JFreeChart crearGrafico(){
         XYSeries set = new XYSeries("Fuerza");
         int i = 0;
         
-            //**los puntos en el eje x siempre van a ser enteros? van a tener decimales?
             //Redondeamos el numero a 2 decimales
             
             //set.add(puntos.get(i).getX(),y);
@@ -99,6 +107,8 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         //Creamos la serie
         XYSeriesCollection dataset = new XYSeriesCollection();
         dataset.addSeries(set);
+        
+        System.out.println("Intervar: "+dataset.getIntervalWidth());
         
         JFreeChart chart = ChartFactory.createXYLineChart(tituloGrafico,
                 nombreEjeX,
@@ -111,22 +121,32 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         );
         String elongacion = "Elongación = "+this.maximaElongacion+"%";        
         chart.addSubtitle(new TextTitle(elongacion,new Font("Dialog",Font.PLAIN,15)));
-
+        
         XYPlot plot = chart.getXYPlot();
-
+        
         //Personalizarlo
         plot.setBackgroundPaint(Color.white);
         plot.setDomainGridlinePaint(Color.darkGray);
         plot.setRangeGridlinePaint(Color.darkGray);
-
+        
         XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
         renderer.setSeriesPaint(0, Color.BLUE);
+        
+        renderer.setSeriesPaint(1, Color.RED);
         //BasicStroke: Grosor de la linea
         renderer.setSeriesStroke(0, new BasicStroke(1.0f));
-        //renderer.setSeriesLinesVisible(0, true);
 
         plot.setRenderer(renderer);
+        
         renderer.setSeriesShape(0, circle);
+        
+        this.minY = plot.getRangeAxis().getRange().getLowerBound();
+        this.maxY = plot.getRangeAxis().getRange().getUpperBound();
+        this.minX = plot.getDomainAxis().getRange().getLowerBound();
+        this.maxX = plot.getDomainAxis().getRange().getUpperBound();
+        
+        plot.getDomainAxis().setRange(minX, maxX + (maxX*0.02));
+        
 
         return chart;
     }
@@ -157,14 +177,44 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
 
                 String Coordenadas = "X:+"+puntoX+", Y:"+puntoY;
                 String elongacion = "Elongación: "+puntos.get(respuesta).getElongacion()+"%";
-                if(puntoX<=2 || puntoY<=2){
-                    puntoY = puntoY+3;
+                
+                float coordenadaPuntoY_e1 = 0;
+                float coordenadaPuntoY_e2 = 0;
+                float coordenadaPuntoX = (float) (puntoX + (maxPuntos*0.06));
+                if(puntoY<0){
+                    coordenadaPuntoY_e1 = (float) (puntoY - (maxPuntos*0.005));
+                    coordenadaPuntoY_e2 = (float) (puntoY - (maxPuntos*0.02));
+                }else{
+                    coordenadaPuntoY_e1 = (float) (puntoY + (maxPuntos*0.02));
+                    coordenadaPuntoY_e2 = (float) (puntoY + (maxPuntos*0.005));
+                }
+                double maxAdecuadoY = this.maxY - (this.maxY*0.10);
+                double minAdecuadoY = this.minY - (this.minY*0.10);
+                double maxAdecuadoX = this.maxX - (this.maxX*0.02);
+
+                if(coordenadaPuntoY_e1>maxAdecuadoY){
+                    //Mejorar la visualización de la etiqueta si muy cerca del punto mas alto en y
+                    coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 - (coordenadaPuntoY_e1*0.2));
+                    coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 - (coordenadaPuntoY_e2*0.2));
+                    coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.2));
+                }if(coordenadaPuntoY_e1<minAdecuadoY){
+                    //Mejorar la visualización de la etiqueta si muy cerca del punto mas bajo en y
+                    coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 - (coordenadaPuntoY_e1*0.2));
+                    coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 - (coordenadaPuntoY_e2*0.2));
+                    System.out.println("Nueva coordenada: "+coordenadaPuntoY_e1);
+                    coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.05));
+                }
+                if(coordenadaPuntoX>maxAdecuadoX){
+                    coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.05));
+                    coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 + (coordenadaPuntoY_e1*0.2));
+                    coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 + (coordenadaPuntoY_e2*0.2));
                 }
                 
-                XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX,puntoY-1);
-                XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX,puntoY-4);
-                etiqueta.setBackgroundPaint(Color.lightGray);
-                etiqueta2.setBackgroundPaint(Color.lightGray);
+                XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,coordenadaPuntoX,coordenadaPuntoY_e1);
+                XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,coordenadaPuntoX,coordenadaPuntoY_e2);
+                
+                etiqueta.setBackgroundPaint(Color.yellow);
+                etiqueta2.setBackgroundPaint(Color.yellow);
                 if(isPuntoMarcado(etiqueta, etiqueta2)){
                     plot.removeAnnotation(etiqueta);
                     plot.removeAnnotation(etiqueta2);
@@ -203,25 +253,56 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
         }
         //Comprobamos si la coordenada donde esta el mouse es un punto
         //de los datos obtenidos
-        System.out.println("Coordenada: ["+x+","+y+"]");
+        //System.out.println("Coordenada: ["+x+","+y+"]");
         
         int respuesta = isPunto(x,y);
         if(respuesta != -1){
             plot.removeAnnotation(a1);
             plot.removeAnnotation(a2);
-
+            
             //DecimalFormat df = new DecimalFormat("#.0");
             float puntoX = puntos.get(respuesta).getX();
             float puntoY = puntos.get(respuesta).getY();
             String Coordenadas = "X:+"+puntoX+", Y:"+puntoY;
             String elongacion = "Elongación: "+puntos.get(respuesta).getElongacion()+"%";
-            if(puntoX<=2 || puntoY<=2){
-                puntoY = puntoY+3;
+
+            float coordenadaPuntoY_e1 = 0;
+            float coordenadaPuntoY_e2 = 0;
+            float coordenadaPuntoX = (float) (puntoX + (maxPuntos*0.06));
+            if(puntoY<0){
+                coordenadaPuntoY_e1 = (float) (puntoY - (maxPuntos*0.005));
+                coordenadaPuntoY_e2 = (float) (puntoY - (maxPuntos*0.02));
+            }else{
+                coordenadaPuntoY_e1 = (float) (puntoY + (maxPuntos*0.02));
+                coordenadaPuntoY_e2 = (float) (puntoY + (maxPuntos*0.005));
             }
-            XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,puntoX+15,puntoY-3);
-            XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,puntoX+15,puntoY-6);
+            double maxAdecuadoY = this.maxY - (this.maxY*0.10);
+            double minAdecuadoY = this.minY - (this.minY*0.10);
+            double maxAdecuadoX = this.maxX - (this.maxX*0.02);
+            
+            if(coordenadaPuntoY_e1>maxAdecuadoY){
+                //Mejorar la visualización de la etiqueta si muy cerca del punto mas alto en y
+                coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 - (coordenadaPuntoY_e1*0.2));
+                coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 - (coordenadaPuntoY_e2*0.2));
+                coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.2));
+            }if(coordenadaPuntoY_e1<minAdecuadoY){
+                //Mejorar la visualización de la etiqueta si muy cerca del punto mas bajo en y
+                coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 - (coordenadaPuntoY_e1*0.2));
+                coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 - (coordenadaPuntoY_e2*0.2));
+                System.out.println("Nueva coordenada: "+coordenadaPuntoY_e1);
+                coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.05));
+            }
+            if(coordenadaPuntoX>maxAdecuadoX){
+                coordenadaPuntoX = (float) (coordenadaPuntoX - (coordenadaPuntoX*0.05));
+                coordenadaPuntoY_e1 = (float) (coordenadaPuntoY_e1 + (coordenadaPuntoY_e1*0.2));
+                coordenadaPuntoY_e2 = (float) (coordenadaPuntoY_e2 + (coordenadaPuntoY_e2*0.2));
+            }
+            
+            XYTextAnnotation etiqueta = new XYTextAnnotation(Coordenadas,coordenadaPuntoX,coordenadaPuntoY_e1);
+            XYTextAnnotation etiqueta2 = new XYTextAnnotation(elongacion,coordenadaPuntoX,coordenadaPuntoY_e2);
             plot.addAnnotation(etiqueta);
             plot.addAnnotation(etiqueta2);
+            
             a1 = etiqueta;
             a2 = etiqueta2;
         }else{
@@ -231,7 +312,6 @@ class PanelGrafica extends JPanel implements ChartMouseListener {
     }
 
     /**
-     * 
      * @param coordenadaX Coordenada x de la posición del mouse
      * @param coordenadaY Coordenada y de la posición del mouse
      * @param rango 

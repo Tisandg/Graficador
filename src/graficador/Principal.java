@@ -8,13 +8,18 @@ import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import org.jfree.chart.ChartPanel;
 import gnu.io.*;
+import java.awt.Rectangle;
+import java.awt.geom.Rectangle2D;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Enumeration;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.text.Document;
+import org.jfree.chart.JFreeChart;
 
 /**
  * @author David Santiago Garcia Chicangana
@@ -30,7 +35,9 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     private boolean lecturaTerminada = false;
     static SerialPort serialPort; //Esta clase abre los puertos
     ArrayList<String> idPuertos;
-    private int contadorDatos = 1;
+    private int contadorDatos = 0;
+    private int cantidadDatos = 0;
+    private int numeroPruebas = 0;
     private String ejeX = "Eje X";
     private String ejeY = "Eje Y";
     
@@ -67,6 +74,8 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
                         System.out.println("Lectura terminada");
                         depurarDatos();
                         mostrarGrafica();
+                        puntosX = new ArrayList<Float>();
+                        puntosY = new ArrayList<Float>();
                         lecturaTerminada = false;
                     }
                 }
@@ -92,13 +101,13 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     public void depurarDatos(){
         System.out.println("Depurando datos...");
         float x, mayorY;
-        int tam = puntosX.size();
         //ArrayList<Puntos> listaTemporal = new ArrayList<Puntos>();
         //ArrayList<Float> datos = new ArrayList<Float>();
         ArrayList<Float> puntos_x = new ArrayList<Float>();
         ArrayList<Float> puntos_y = new ArrayList<Float>();
         
         int i;
+        int tam = puntosX.size();
         //Tomamos el primer valor de las listas
         x = puntosX.get(0);
         mayorY = puntosY.get(0);
@@ -159,9 +168,11 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         //Iniciar de nuevo la lista de puntos
         this.puntos = new ArrayList<Puntos>();
         
+        //Crear lista de puntos a graficar
         for(int i = 0; i<puntosX.size(); i++){
             Puntos p = new Puntos(puntosX.get(i),puntosY.get(i));
-            float elongacion = (p.getY()/panel.referencia)*100;
+            //Calculamos la elongación
+            float elongacion = (p.getX()/panel.referencia)*100;
             if(elongacion<0){   elongacion = elongacion * -1;   }
             p.setElongacion(elongacion);
             puntos.add(p);
@@ -169,13 +180,13 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         System.out.println("Puntos a graficar: "+puntos.size());
         setContentPane(crearGrafica());
         
-        this.puntosX = new ArrayList<Float>();
-        this.puntosY = new ArrayList<Float>();
         /*hace que la ventana coja el tamaño más pequeño posible que permita ver
         todos los componentes.*/
         //this.pack();
         this.setVisible(true);
     }
+    
+
 
     private void listarPuertos() {
         /*****Comunicación serial*******/
@@ -267,6 +278,7 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     
     public synchronized void close(){
         if(serialPort != null){
+            System.out.println("Puerto cerrado");
             serialPort.removeEventListener();
             serialPort.close();
         }
@@ -277,35 +289,49 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         if(event.getEventType() == SerialPortEvent.DATA_AVAILABLE){
             try{
                 String linea = input.readLine();
+                
                 if(contadorDatos == 0){
+                    //Nombres de los ejes
                     String[] dividido = linea.split(",");
                     this.ejeX = dividido[0];
                     this.ejeY = dividido[1];
                     this.contadorDatos++;
-                }else{
-                    //if(linea.equals("1")){
-                    if(this.contadorDatos == 302){
-                        System.out.println("Entro");
-                        this.lecturaTerminada = true;
-                        //this.contadorDatos = 0;
-                    }else if(this.contadorDatos < 302 ){
-                        //if(lecturaTerminada == false){
-                            String[] dividido = linea.split(",");
-                            float valorX = Float.parseFloat(dividido[0]);
-                            float valorY = Float.parseFloat(dividido[1]);
-                            puntosX.add(valorX);
-                            puntosY.add(valorY);
-                        //}
-                    }
+                    this.numeroPruebas++;
+                }
+                if(contadorDatos == 1){
+                    //Cantidad de datos a leer
+                    this.cantidadDatos = Integer.parseInt(linea);
+                    System.out.println("Cantidad de datos: "+this.cantidadDatos);
+                    this.contadorDatos++;
+                }
+                if(this.contadorDatos == this.cantidadDatos+2){
+                    //La cantidad de datos definidos han sido leidos
+                    this.lecturaTerminada = true;
+                    this.contadorDatos++;
+                }
+                if(this.contadorDatos < this.cantidadDatos+2){
+                    //Agregamos los puntos acordes a la cantidad definida
+                    String[] dividido = linea.split(",");
+                    float valorX = Float.parseFloat(dividido[0]);
+                    float valorY = Float.parseFloat(dividido[1]);
+                    puntosX.add(valorX);
+                    puntosY.add(valorY);
                     this.contadorDatos++;
                 }
                 System.out.println(linea);
+                if(linea == "fin"){
+                    System.out.println("Ultimo dato");
+                    this.contadorDatos = 0;
+                }
+                
             }catch (IOException ex) {
                 this.close();
                 mostrarMensaje("Información", "Conexion cerrada.\nVuelva a seleccionar el puerto");
                 System.out.println("Excepcion al leer la linea. "+ex.getMessage());
                 ex.printStackTrace();
             }
+        }else{
+            System.out.println("No hay datos disponibles");
         }
     }
     
