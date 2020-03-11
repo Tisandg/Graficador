@@ -8,18 +8,17 @@ import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import org.jfree.chart.ChartPanel;
 import gnu.io.*;
-import java.awt.Rectangle;
-import java.awt.geom.Rectangle2D;
+import java.awt.Container;
+import java.awt.Image;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Enumeration;
+import javax.swing.ImageIcon;
+import javax.swing.JDialog;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.text.Document;
-import org.jfree.chart.JFreeChart;
 
 /**
  * @author David Santiago Garcia Chicangana
@@ -92,6 +91,10 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         
         //Centrar la ventana
         setLocationRelativeTo(null);
+        
+        ImageIcon ImageIcon = new ImageIcon(getClass().getResource("images/logo.png"));
+        Image Image = ImageIcon.getImage();
+        this.setIconImage(Image);
     }
     
     /**
@@ -370,7 +373,7 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         jMenuItem_Salir = new javax.swing.JMenuItem();
         jMenuPuertos = new javax.swing.JMenu();
         jMenuAyuda = new javax.swing.JMenu();
-        jMenuItem5 = new javax.swing.JMenuItem();
+        jMenuItem_Acerca = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Graficador");
@@ -410,8 +413,13 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
 
         jMenuAyuda.setText("Ayuda");
 
-        jMenuItem5.setText("Acerca de");
-        jMenuAyuda.add(jMenuItem5);
+        jMenuItem_Acerca.setText("Acerca de");
+        jMenuItem_Acerca.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItem_AcercaActionPerformed(evt);
+            }
+        });
+        jMenuAyuda.add(jMenuItem_Acerca);
 
         jMenuBar.add(jMenuAyuda);
 
@@ -469,6 +477,18 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
         panel.createChartPrintJob();
     }//GEN-LAST:event_jMenuItem_ImprimirActionPerformed
 
+    private void jMenuItem_AcercaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem_AcercaActionPerformed
+        // TODO add your handling code here:
+        //Mostrar ventana con información
+        AcercaDe ventana = new AcercaDe(this, true);
+        ventana.setLocationRelativeTo(null);
+        ventana.setVisible(true);
+        /*ventanaAcerca.setTitle("Acerca de ");
+        ventanaAcerca.setVisible(true);
+        ventanaAcerca.setLocationRelativeTo(null);*/
+                
+    }//GEN-LAST:event_jMenuItem_AcercaActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -508,8 +528,8 @@ public class Principal extends javax.swing.JFrame implements SerialPortEventList
     private javax.swing.JMenu jMenuArchivo;
     private javax.swing.JMenu jMenuAyuda;
     private javax.swing.JMenuBar jMenuBar;
-    private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JMenuItem jMenuItemAbrir;
+    private javax.swing.JMenuItem jMenuItem_Acerca;
     private javax.swing.JMenuItem jMenuItem_Imprimir;
     private javax.swing.JMenuItem jMenuItem_Salir;
     private javax.swing.JMenu jMenuPuertos;
